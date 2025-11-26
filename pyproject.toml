@@ -11,7 +11,6 @@ dependencies = [
     "fastapi[standard]>=0.119.0",
     "funasr>=1.2.7",
     "funasr-onnx>=0.3.2",
-    "gradio>=5.49.1",
     "huggingface-hub>=0.35.3",
     "loguru>=0.7.3",
     "matplotlib>=3.10.7",
@@ -20,7 +19,6 @@ dependencies = [
     "onnx==1.18",
     "pydantic>=2.11.10",
     "pydub>=0.25.1",
-    "pysrt>=1.1.2",
     "python-multipart>=0.0.20",
     "scipy>=1.16.2",
     "soundfile==0.12.1",
@@ -32,7 +30,3 @@ dependencies = [
     "websockets>=15.0.1",
     "yt-dlp>=2025.10.22",
 ]
-
-[[tool.uv.index]]
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-default = true
