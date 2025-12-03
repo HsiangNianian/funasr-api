@@ -128,7 +128,7 @@ device_id = 0
 # 参数量: 0.4M | 支持: 中英文
 # =============================================================================
 [model.fsmnvad]
-enable = false
+enable = true
 model_name = "fsmn-vad"
 device = "cuda"
 device_id = 0
@@ -143,7 +143,7 @@ device_id = 0
 # 参数量: 0.7M | 支持: 中文
 # =============================================================================
 [model.fsmnkws]
-enable = false
+enable = true
 model_name = "iic/speech_charctc_kws_phone-xiaoyun"
 device = "cuda"
 device_id = 0
@@ -157,7 +157,7 @@ device_id = 0
 # 参数量: 38M | 支持: 中文
 # =============================================================================
 [model.fazh]
-enable = false
+enable = true
 model_name = "fa-zh"
 device = "cuda"
 device_id = 0
@@ -170,7 +170,7 @@ device_id = 0
 # 参数量: 7.2M | 训练数据: 5000 小时
 # =============================================================================
 [model.campplus]
-enable = false
+enable = true
 model_name = "cam++"
 device = "cuda"
 device_id = 0
@@ -184,7 +184,7 @@ device_id = 0
 # 参数量: 300M | 训练数据: 40000 小时
 # =============================================================================
 [model.emotion2vec]
-enable = false
+enable = true
 model_name = "iic/emotion2vec_plus_large"
 device = "cuda"
 device_id = 0
@@ -214,7 +214,7 @@ device_id = 0
 # 注意: 需要较大显存
 # =============================================================================
 [model.qwenaudio_chat]
-enable = true
+enable = 0
 model_name = "Qwen/Qwen-Audio-Chat"
 device = "cuda"
 device_id = 0

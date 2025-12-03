@@ -16,6 +16,7 @@ dependencies = [
     "matplotlib>=3.10.7",
     "modelscope>=1.30.0",
     "moviepy>=2.2.1",
+    "numpy>=1.26.4",
     "onnx==1.18",
     "pydantic>=2.11.10",
     "pydub>=0.25.1",
