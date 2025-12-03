@@ -1,11 +1,222 @@
+# FunASR API 配置文件
+# 完整配置参考: https://github.com/modelscope/FunASR
+
+# =============================================================================
+# 应用配置
+# =============================================================================
 [app]
-port = 8000
-host = "0.0.0.0"
+port = 6959                      # API 服务端口
+host = "0.0.0.0"                 # 绑定地址，0.0.0.0 表示所有网卡
 
+# =============================================================================
+# 日志配置
+# =============================================================================
 [log]
-level = "DEBUG"
-verbose_exception = false
+level = "INFO"                   # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
+verbose_exception = false        # 是否显示详细异常信息
 
+# =============================================================================
+# 全局模型配置（可被各模型配置覆盖）
+# =============================================================================
 [model]
+device = "cuda"                  # 设备类型: "cuda" 或 "cpu"
+device_id = 0                    # 设备ID，多卡时可设为 0, 1, 2...
+
+# =============================================================================
+# SenseVoice 多功能语音理解模型
+# 功能: ASR + ITN + LID + SER + AED (语音识别、逆文本规范化、语种识别、情感识别、音频事件检测)
+# 支持语言: zh, yue, en, ja, ko
+# 参数量: 234M | 训练数据: 300000 小时
+# =============================================================================
+[model.sensevoice]
+enable = true
+model_name = "iic/SenseVoiceSmall"
 device = "cuda"
 device_id = 0
+
+[model.sensevoice.kwargs]
+# VAD 配置（分割长音频）
+vad_model = "fsmn-vad"
+
+[model.sensevoice.kwargs.vad_kwargs]
+max_single_segment_time = 30000  # VAD 最大分段时长（毫秒）
+
+# =============================================================================
+# Paraformer-ZH 中文语音识别（非流式）
+# 功能: 带时间戳的中文语音识别
+# 参数量: 220M | 训练数据: 60000 小时中文
+# =============================================================================
+[model.paraformer_zh]
+enable = false
+model_name = "paraformer-zh"
+device = "cuda"
+device_id = 0
+
+[model.paraformer_zh.kwargs]
+# 可选: 集成 VAD、标点、说话人分离
+vad_model = "fsmn-vad"
+punc_model = "ct-punc"
+# spk_model = "cam++"           # 说话人分离（可选）
+batch_size_s = 300               # 动态批处理，按秒计
+hotword = ""                     # 热词，提高特定词汇识别率，如 "魔搭"
+
+# =============================================================================
+# Paraformer-ZH-Streaming 中文语音识别（流式）
+# 功能: 实时中文语音识别
+# 参数量: 220M | 训练数据: 60000 小时中文
+# =============================================================================
+[model.paraformer_zh_streaming]
+enable = false
+model_name = "paraformer-zh-streaming"
+device = "cuda"
+device_id = 0
+
+[model.paraformer_zh_streaming.kwargs]
+# 流式配置
+# chunk_size = [0, 10, 5]        # [0,10,5] 表示 600ms 延迟，[0,8,4] 表示 480ms 延迟
+# encoder_chunk_look_back = 4   # 编码器自注意力回看 chunk 数
+# decoder_chunk_look_back = 1   # 解码器交叉注意力回看 chunk 数
+
+# =============================================================================
+# Paraformer-EN 英文语音识别（非流式）
+# 功能: 英文语音识别（不带时间戳）
+# 参数量: 220M | 训练数据: 50000 小时英文
+# =============================================================================
+[model.paraformer_en]
+enable = false
+model_name = "paraformer-en"
+device = "cuda"
+device_id = 0
+
+[model.paraformer_en.kwargs]
+vad_model = "fsmn-vad"
+punc_model = "ct-punc"
+batch_size_s = 300
+
+# =============================================================================
+# Whisper-large-v3-turbo 多语言语音识别
+# 功能: 多语言语音识别、语音翻译、语种识别（带时间戳）
+# 参数量: 809M | 支持: 多语言
+# =============================================================================
+[model.whisper]
+enable = false
+model_name = "iic/Whisper-large-v3-turbo"
+device = "cuda"
+device_id = 0
+
+[model.whisper.kwargs]
+# 可选配置
+# language = "zh"                # 指定语言，不设置则自动检测
+# task = "transcribe"            # "transcribe" 转录 或 "translate" 翻译成英文
+
+# =============================================================================
+# CT-Punc 标点恢复模型
+# 功能: 为无标点文本添加标点符号
+# 参数量: 290M | 支持: 中英文
+# =============================================================================
+[model.ctpunc]
+enable = false
+model_name = "ct-punc"
+device = "cuda"
+device_id = 0
+
+[model.ctpunc.kwargs]
+
+# =============================================================================
+# FSMN-VAD 语音活动检测
+# 功能: 检测语音段落起止时间，分割长音频
+# 参数量: 0.4M | 支持: 中英文
+# =============================================================================
+[model.fsmnvad]
+enable = false
+model_name = "fsmn-vad"
+device = "cuda"
+device_id = 0
+
+[model.fsmnvad.kwargs]
+# 流式 VAD 配置
+# chunk_size = 200               # 流式处理块大小（毫秒）
+
+# =============================================================================
+# FSMN-KWS 关键词检测（流式）
+# 功能: 实时关键词检测/唤醒词检测
+# 参数量: 0.7M | 支持: 中文
+# =============================================================================
+[model.fsmnkws]
+enable = false
+model_name = "iic/speech_charctc_kws_phone-xiaoyun"
+device = "cuda"
+device_id = 0
+
+[model.fsmnkws.kwargs]
+# 关键词列表配置
+
+# =============================================================================
+# FA-ZH 时间戳预测模型
+# 功能: 为已有文本预测对应的音频时间戳
+# 参数量: 38M | 支持: 中文
+# =============================================================================
+[model.fazh]
+enable = false
+model_name = "fa-zh"
+device = "cuda"
+device_id = 0
+
+[model.fazh.kwargs]
+
+# =============================================================================
+# CAM++ 说话人验证/分离模型
+# 功能: 说话人身份验证、说话人日志（多人对话分离）
+# 参数量: 7.2M | 训练数据: 5000 小时
+# =============================================================================
+[model.campplus]
+enable = false
+model_name = "cam++"
+device = "cuda"
+device_id = 0
+
+[model.campplus.kwargs]
+
+# =============================================================================
+# Emotion2Vec+ 语音情感识别
+# 功能: 识别语音中的情感
+# 类别: 0-angry, 1-happy, 2-neutral, 3-sad, 4-unknown
+# 参数量: 300M | 训练数据: 40000 小时
+# =============================================================================
+[model.emotion2vec]
+enable = false
+model_name = "iic/emotion2vec_plus_large"
+device = "cuda"
+device_id = 0
+
+[model.emotion2vec.kwargs]
+granularity = "utterance"        # 粒度: "utterance" 整句 或 "frame" 逐帧
+extract_embedding = false        # 是否提取嵌入向量
+
+# =============================================================================
+# Qwen-Audio 音频理解大模型（预训练）
+# 功能: 音频-文本多模态理解
+# 参数量: 8B | 支持: 多语言
+# 注意: 需要较大显存
+# =============================================================================
+[model.qwenaudio]
+enable = false
+model_name = "Qwen/Qwen-Audio"
+device = "cuda"
+device_id = 0
+
+[model.qwenaudio.kwargs]
+
+# =============================================================================
+# Qwen-Audio-Chat 音频对话大模型
+# 功能: 音频-文本多模态对话
+# 参数量: 8B | 支持: 多语言
+# 注意: 需要较大显存
+# =============================================================================
+[model.qwenaudio_chat]
+enable = true
+model_name = "Qwen/Qwen-Audio-Chat"
+device = "cuda"
+device_id = 0
+
+[model.qwenaudio_chat.kwargs]
