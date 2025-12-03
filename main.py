@@ -3,10 +3,8 @@ import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
-from src.log import logger
 from src.api.model import (
     campplus,
-    conformer,
     ctpunc,
     emotion2vec,
     fazh,
@@ -30,7 +28,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(description="FunASR API", title="FunASR", lifespan=lifespan)
 
 app.include_router(campplus.router)
-app.include_router(conformer.router)
 app.include_router(ctpunc.router)
 app.include_router(emotion2vec.router)
 app.include_router(fazh.router)
