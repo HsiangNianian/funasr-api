@@ -29,7 +29,7 @@ device_id = 0                    # 设备ID，多卡时可设为 0, 1, 2...
 # 参数量: 234M | 训练数据: 300000 小时
 # =============================================================================
 [model.sensevoice]
-enable = true
+enable = false
 model_name = "iic/SenseVoiceSmall"
 device = "cuda"
 device_id = 0
@@ -47,7 +47,7 @@ max_single_segment_time = 30000  # VAD 最大分段时长（毫秒）
 # 参数量: 220M | 训练数据: 60000 小时中文
 # =============================================================================
 [model.paraformer_zh]
-enable = false
+enable = true
 model_name = "paraformer-zh"
 device = "cuda"
 device_id = 0

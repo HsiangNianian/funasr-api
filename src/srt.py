@@ -29,7 +29,9 @@ TimestampMs = int  # 以毫秒为单位的时间戳
 AudioSegment = np.ndarray  # 音频采样数据
 VadSegment = Tuple[TimestampMs, TimestampMs]  # VAD片段 (start_ms, end_ms)
 WordTimestamp = Tuple[str, List[TimestampMs]]  # 词时间戳 (word, [start_ms, end_ms])
-SentenceTimestamp = Tuple[str, List[TimestampMs]]  # 句子时间戳 (sentence, [start_ms, end_ms])
+SentenceTimestamp = Tuple[
+    str, List[TimestampMs]
+]  # 句子时间戳 (sentence, [start_ms, end_ms])
 
 
 # =============================================================================
@@ -44,8 +46,18 @@ class SRTConfig:
     # 句子分隔符
     sentence_delimiters: List[str] = field(
         default_factory=lambda: [
-            "。", "！", "？", "；", "，", "、", "：",
-            """, """, "'", "'", '"', "'",
+            "。",
+            "！",
+            "？",
+            "；",
+            "，",
+            "、",
+            "：",
+            """, """,
+            "'",
+            "'",
+            '"',
+            "'",
         ]
     )
     # 长片段阈值（毫秒），超过此值使用 FA-ZH 细化时间戳
@@ -115,6 +127,7 @@ class AudioProcessor:
     def load_audio_bytes(audio_bytes: bytes) -> Tuple[AudioSegment, int]:
         """从字节流加载音频"""
         import io
+
         audio_data, sample_rate = sf.read(io.BytesIO(audio_bytes))
         if len(audio_data.shape) > 1:
             audio_data = np.mean(audio_data, axis=1)
@@ -137,6 +150,7 @@ class AudioProcessor:
             return audio_data
         try:
             import librosa
+
             return librosa.resample(
                 audio_data, orig_sr=original_rate, target_sr=target_rate
             )
@@ -153,9 +167,9 @@ class AudioProcessor:
 class SRTGenerator:
     """
     SRT 字幕生成器
-    
+
     使用 FunasrApp 中已加载的模型生成高精度 SRT 字幕
-    
+
     所需模型:
     - paraformer_zh 或其他 ASR 模型: 语音识别
     - fsmnvad: VAD 语音活动检测
@@ -176,13 +190,23 @@ class SRTGenerator:
     # 模型访问
     # -------------------------------------------------------------------------
 
-    def _get_asr_model(self) -> Any:
-        """获取 ASR 模型（优先使用 paraformer_zh）"""
-        for model_name in ["paraformer_zh", "sensevoice", "paraformer_en", "whisper"]:
+    def _get_asr_model(self) -> tuple[Any, str]:
+        """获取 ASR 模型（优先使用 paraformer_zh）
+
+        SRT 生成优先使用 Paraformer 系列，因为输出更干净
+        SenseVoice 输出包含富文本标签，需要额外后处理
+
+        Returns:
+            (model, model_name): 模型实例和模型名称
+        """
+        # 优先使用 Paraformer 系列（输出干净，适合 SRT）
+        for model_name in ["paraformer_zh", "paraformer_en", "whisper", "sensevoice"]:
             model = self.app.get_model_sync(model_name)
             if model is not None:
-                return model
-        raise RuntimeError("没有可用的 ASR 模型，请在配置中启用 paraformer_zh 或其他 ASR 模型")
+                return model, model_name
+        raise RuntimeError(
+            "没有可用的 ASR 模型，请在配置中启用 paraformer_zh 或其他 ASR 模型"
+        )
 
     def _get_vad_model(self) -> Any:
         """获取 VAD 模型"""
@@ -209,7 +233,7 @@ class SRTGenerator:
         """获取 VAD 分段结果"""
         sample_rate = sample_rate or self.audio_processor.sample_rate
         vad_model = self._get_vad_model()
-        
+
         vad_result = vad_model.generate(input=audio_data, sample_rate=sample_rate)
         if not vad_result or "value" not in vad_result[0]:
             return []
@@ -233,14 +257,39 @@ class SRTGenerator:
 
     def _get_asr_text(self, audio_segment: AudioSegment) -> str:
         """内部方法：直接获取 ASR 识别文本"""
-        asr_model = self._get_asr_model()
+        asr_model, model_name = self._get_asr_model()
         result = asr_model.generate(
             input=audio_segment, sample_rate=self.audio_processor.sample_rate
         )
         if not result or "text" not in result[0]:
             return ""
+
+        text = result[0]["text"]
+
+        # SenseVoice 输出需要后处理，去除富文本标签
+        if model_name == "sensevoice":
+            text = self._postprocess_sensevoice_text(text)
+
         # 移除空格
-        return "".join(result[0]["text"].split())
+        return "".join(text.split())
+
+    def _postprocess_sensevoice_text(self, text: str) -> str:
+        """后处理 SenseVoice 的富文本输出
+
+        SenseVoice 输出格式: <lang><emotion><event><withitn>实际文本
+        例如: <zh><NEUTRAL><Speech><woitn>你好
+        """
+        try:
+            from funasr.utils.postprocess_utils import rich_transcription_postprocess
+
+            return rich_transcription_postprocess(text)
+        except ImportError:
+            # 如果无法导入，手动解析
+            import re
+
+            # 移除所有 <...> 标签
+            cleaned = re.sub(r"<[^>]+>", "", text)
+            return cleaned.strip()
 
     def get_punc_text(self, text: str) -> str:
         """获取带标点的文本"""
@@ -259,7 +308,7 @@ class SRTGenerator:
         fazh_model = self._get_fazh_model()
         if fazh_model is None:
             raise RuntimeError("FA-ZH 模型未加载")
-        
+
         result = fazh_model.generate(
             input=(str(audio_path), str(text_path)), data_type=("sound", "text")
         )
@@ -424,11 +473,11 @@ class SRTGenerator:
         segment_audio = self.audio_processor.extract_segment(
             audio_data, start_ms, end_ms
         )
-        
+
         asr_text = self.get_asr_text(segment_audio)
         if len(asr_text) == 0:
             return ""
-        
+
         punc_text = self.get_punc_text(asr_text)
         return punc_text
 
@@ -459,10 +508,10 @@ class SRTGenerator:
         try:
             # 获取 FA-ZH 结果
             fazh_result = self.get_fazh_result(temp_audio_path, temp_text_path)
-            
+
             if not fazh_result:
                 raise ValueError("FA-ZH 返回结果为空")
-            
+
             fazh_text = fazh_result[0]["text"].split()
             fazh_timestamps = fazh_result[0]["timestamp"]
 
@@ -485,7 +534,9 @@ class SRTGenerator:
                     absolute_timestamps.append((token, [absolute_start, absolute_end]))
 
             # 修正时间戳
-            fixed_timestamps = self.fix_word_timestamps(absolute_timestamps, vad_segment)
+            fixed_timestamps = self.fix_word_timestamps(
+                absolute_timestamps, vad_segment
+            )
 
             # 强制对齐到句子
             sentences = self.serialize_sentences(punc_text)
@@ -501,16 +552,16 @@ class SRTGenerator:
             sentences = self.serialize_sentences(punc_text)
             if not sentences:
                 return []
-            
+
             total_duration = end_ms - start_ms
             duration_per_sentence = total_duration / len(sentences)
             result_timestamps: List[SentenceTimestamp] = []
-            
+
             for i, sentence in enumerate(sentences):
                 sent_start = int(start_ms + i * duration_per_sentence)
                 sent_end = int(start_ms + (i + 1) * duration_per_sentence)
                 result_timestamps.append((sentence, [sent_start, sent_end]))
-            
+
             return result_timestamps
 
         finally:
@@ -537,9 +588,7 @@ class SRTGenerator:
         milliseconds = remaining % 1000
         return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
 
-    def generate_srt_content(
-        self, sentence_timestamps: List[SentenceTimestamp]
-    ) -> str:
+    def generate_srt_content(self, sentence_timestamps: List[SentenceTimestamp]) -> str:
         """生成 SRT 文件内容"""
         lines: List[str] = []
         for idx, (text, timestamp) in enumerate(sentence_timestamps, 1):
@@ -574,12 +623,12 @@ class SRTGenerator:
     ) -> ProcessingResult:
         """
         处理音频数据，生成 SRT 字幕
-        
+
         Args:
             audio_data: 音频采样数据
             sample_rate: 采样率
             output_dir: 输出目录（可选，用于保存临时文件和结果）
-        
+
         Returns:
             ProcessingResult: 处理结果
         """
@@ -637,12 +686,14 @@ class SRTGenerator:
                         # 如果有多个句子，平均分配时间
                         total_duration = end_ms - start_ms
                         duration_per_sentence = total_duration / len(sentences)
-                        
+
                         for i, sentence in enumerate(sentences):
                             sent_start = int(start_ms + i * duration_per_sentence)
                             sent_end = int(start_ms + (i + 1) * duration_per_sentence)
-                            all_sentence_timestamps.append((sentence, [sent_start, sent_end]))
-                            
+                            all_sentence_timestamps.append(
+                                (sentence, [sent_start, sent_end])
+                            )
+
                             char_timestamps = self._generate_uniform_char_timestamps(
                                 sentence, sent_start, sent_end
                             )
@@ -675,13 +726,13 @@ class SRTGenerator:
     ) -> ProcessingResult:
         """
         处理音频文件，生成 SRT 字幕
-        
+
         Args:
             audio_path: 音频文件路径
             output_dir: 输出目录
             save_srt: 是否保存 SRT 文件
             save_segments: 是否保存音频片段
-        
+
         Returns:
             ProcessingResult: 处理结果
         """
@@ -689,7 +740,9 @@ class SRTGenerator:
 
         # 加载音频
         audio_data, sample_rate = self.audio_processor.load_audio(audio_path)
-        logger.info(f"音频采样率: {sample_rate}, 时长: {len(audio_data)/sample_rate:.2f}s")
+        logger.info(
+            f"音频采样率: {sample_rate}, 时长: {len(audio_data)/sample_rate:.2f}s"
+        )
 
         # 处理音频
         result = self.process(audio_data, sample_rate, output_dir)
@@ -701,9 +754,7 @@ class SRTGenerator:
             self.save_srt_file(result.segments, srt_path)
 
         if output_dir and save_segments:
-            self._save_audio_segments(
-                output_dir, audio_data, result.segments
-            )
+            self._save_audio_segments(output_dir, audio_data, result.segments)
 
         return result
 
@@ -728,11 +779,11 @@ class SRTGenerator:
     ) -> ProcessingResult:
         """
         处理音频字节流，生成 SRT 字幕
-        
+
         Args:
             audio_bytes: 音频字节数据
             output_dir: 输出目录（可选）
-        
+
         Returns:
             ProcessingResult: 处理结果
         """
@@ -767,9 +818,9 @@ class SRTGenerator:
 
             # 生成安全的文件名
             safe_text = text[:20].replace(" ", "_").replace("/", "_").replace("\\", "_")
-            for char in ['<', '>', ':', '"', '|', '?', '*']:
+            for char in ["<", ">", ":", '"', "|", "?", "*"]:
                 safe_text = safe_text.replace(char, "_")
-            
+
             output_path = segments_dir / f"segment_{idx:04d}_{safe_text}.wav"
             self.audio_processor.save_audio(
                 segment, output_path, self.audio_processor.sample_rate

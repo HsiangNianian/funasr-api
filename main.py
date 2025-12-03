@@ -1,4 +1,3 @@
-
 import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -20,11 +19,13 @@ from src.app import FunasrApp
 
 funasr_app = FunasrApp()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await funasr_app.init()
     app.state.funasr_app = funasr_app
     yield
+
 
 app = FastAPI(description="FunASR API", title="FunASR", lifespan=lifespan)
 
@@ -40,9 +41,11 @@ app.include_router(sensevoice.router)
 app.include_router(whisper.router)
 app.include_router(srt.router)
 
+
 @app.get("/")
 async def _():
     return RedirectResponse(url="/docs")
+
 
 if __name__ == "__main__":
     uvicorn.run(

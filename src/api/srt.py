@@ -93,10 +93,14 @@ class TaskStatusResponse(BaseModel):
     # 结果字段
     total_sentences: Optional[int] = Field(default=None, description="总句子数")
     total_vad_segments: Optional[int] = Field(default=None, description="VAD 分段数")
-    audio_duration_ms: Optional[int] = Field(default=None, description="音频时长（毫秒）")
+    audio_duration_ms: Optional[int] = Field(
+        default=None, description="音频时长（毫秒）"
+    )
     sample_rate: Optional[int] = Field(default=None, description="采样率")
     # 下载链接
-    srt_download_url: Optional[str] = Field(default=None, description="SRT 文件下载链接")
+    srt_download_url: Optional[str] = Field(
+        default=None, description="SRT 文件下载链接"
+    )
     segments_download_url: Optional[str] = Field(
         default=None, description="音频片段下载链接"
     )
@@ -180,7 +184,9 @@ def _ensure_dirs():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _get_srt_generator(request: Request, config: Optional[SRTConfig] = None) -> SRTGenerator:
+def _get_srt_generator(
+    request: Request, config: Optional[SRTConfig] = None
+) -> SRTGenerator:
     """获取 SRT 生成器"""
     funasr_app = request.app.state.funasr_app
     return SRTGenerator(funasr_app, config)
@@ -635,4 +641,3 @@ async def check_service_status(request: Request) -> ServiceStatusResponse:
         pending_tasks=pending_count,
         processing_tasks=processing_count,
     )
-
