@@ -9,6 +9,3 @@ verbose_exception = false
 [model]
 device = "cuda"
 device_id = 0
-
-[model.campplus]
-enable = 1
