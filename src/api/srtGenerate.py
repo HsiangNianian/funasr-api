@@ -33,10 +33,6 @@ from src.srt import ProcessingResult, SRTConfig, SRTGenerator
 
 router = APIRouter(prefix="/srt", tags=["SRT 字幕生成"])
 
-# =============================================================================
-# 配置
-# =============================================================================
-
 # 文件存储目录（相对于项目根目录）
 UPLOAD_DIR = Path("uploads/srt")
 OUTPUT_DIR = Path("outputs/srt")
@@ -44,11 +40,6 @@ OUTPUT_DIR = Path("outputs/srt")
 # 清理策略
 CLEANUP_AFTER_DOWNLOAD = False  # 下载后是否清理文件
 CLEANUP_UPLOAD_FILES = True  # 处理完成后是否清理上传文件
-
-
-# =============================================================================
-# 枚举与数据模型
-# =============================================================================
 
 
 class TaskStatus(str, Enum):
@@ -135,10 +126,6 @@ class ServiceStatusResponse(BaseModel):
     processing_tasks: int = Field(description="处理中的任务数")
 
 
-# =============================================================================
-# 任务存储（生产环境应使用 Redis 或数据库）
-# =============================================================================
-
 _tasks: Dict[str, TaskInfo] = {}
 
 
@@ -171,11 +158,6 @@ def _task_to_response(task: TaskInfo) -> TaskStatusResponse:
             response.segments_download_url = f"/srt/download/{task.task_id}/segments"
 
     return response
-
-
-# =============================================================================
-# 辅助函数
-# =============================================================================
 
 
 def _ensure_dirs():
@@ -310,11 +292,6 @@ async def _cleanup_task_files(task_id: str):
         logger.error(f"清理任务文件失败: {task_id}, 错误: {e}")
 
 
-# =============================================================================
-# API 路由 - 任务管理
-# =============================================================================
-
-
 @router.post(
     "/process",
     response_model=CreateTaskResponse,
@@ -444,11 +421,6 @@ async def delete_task(task_id: str) -> dict:
     return {"message": "任务已删除", "task_id": task_id}
 
 
-# =============================================================================
-# API 路由 - 文件下载
-# =============================================================================
-
-
 @router.get(
     "/download/{task_id}/srt",
     summary="下载 SRT 文件",
@@ -547,11 +519,6 @@ async def get_srt_content(task_id: str) -> SRTContentResponse:
     )
 
 
-# =============================================================================
-# API 路由 - 同步处理（小文件快速处理）
-# =============================================================================
-
-
 @router.post(
     "/generate",
     response_class=PlainTextResponse,
@@ -603,11 +570,6 @@ async def generate_srt_sync(
     except Exception as e:
         logger.error(f"SRT 生成失败: {e}")
         raise HTTPException(status_code=500, detail=f"SRT 生成失败: {str(e)}")
-
-
-# =============================================================================
-# API 路由 - 服务状态
-# =============================================================================
 
 
 @router.get(
