@@ -14,7 +14,7 @@ from src.api.model import (
     sensevoice,
     whisper,
 )
-from src.api import srt
+from src.api import srtGenerate
 from src.app import FunasrApp
 
 funasr_app = FunasrApp()
@@ -39,7 +39,7 @@ app.include_router(paraformer.router)
 app.include_router(qwenaudio.router)
 app.include_router(sensevoice.router)
 app.include_router(whisper.router)
-app.include_router(srt.router)
+app.include_router(srtGenerate.router)
 
 
 @app.get("/")
